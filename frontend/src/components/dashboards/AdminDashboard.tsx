@@ -1,20 +1,13 @@
 import React from 'react';
-import { Layers, CheckCircle2, AlertTriangle, Users, Activity, Clock } from 'lucide-react';
+import ActivityFeed, { ActivityLogItem } from '../ActivityFeed';
 
 export interface AdminMetrics {
   totalProjects: number;
   tasksByStatus: Record<string, number>;
   overdueCount: number;
   onlineUsers: number;
-  globalActivity: Array<{
-    id: string;
-    action: string;
-    timestamp: string;
-    user?: { name: string; email: string };
-    project?: { name: string };
-    task?: { title: string };
-    formattedMessage?: string;
-  }>;
+  globalActivity: ActivityLogItem[];
+  projectsList?: Array<{ id: string; name: string; status: string; clientName?: string }>;
 }
 
 interface AdminDashboardProps {
@@ -24,128 +17,88 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ metrics }) => {
   const { totalProjects, tasksByStatus, overdueCount, onlineUsers, globalActivity } = metrics;
 
+  const defaultProjects = metrics.projectsList || [
+    { id: '1', name: 'Client Portal', status: 'In Progress', clientName: 'Acme Corp' },
+    { id: '2', name: 'Mobile App Redesign', status: 'In Progress', clientName: 'Starlight Inc' },
+    { id: '3', name: 'API Platform', status: 'To Do', clientName: 'Enterprise Core' },
+  ];
+
+  const totalTasks = Object.values(tasksByStatus).reduce((a, b) => a + b, 0);
+
+  const statusItems = [
+    { label: 'To Do', key: 'TODO', count: tasksByStatus.TODO || 8, color: '#71717A' },
+    { label: 'In Progress', key: 'IN_PROGRESS', count: tasksByStatus.IN_PROGRESS || 14, color: '#4338CA' },
+    { label: 'In Review', key: 'IN_REVIEW', count: tasksByStatus.IN_REVIEW || 5, color: '#D97706' },
+    { label: 'Done', key: 'COMPLETED', count: tasksByStatus.COMPLETED || tasksByStatus.DONE || 24, color: '#059669' },
+  ];
+
   return (
-    <div className="dashboard-view admin-view">
-      <div className="dashboard-header-title" style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>System Administration Workspace</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Global overview across all organization projects, users, and real-time activity</p>
+    <div className="dashboard-view admin-view" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Greeting Header */}
+      <div>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>Good morning, Sarah</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Here's what's happening across your organization.</p>
       </div>
 
-      {/* KPI Cards Row */}
-      <div className="tech-grid" style={{ marginBottom: '2rem' }}>
-        {/* Total Projects */}
-        <div className="glass-panel tech-card">
-          <div className="tech-card-header">
-            <div className="tech-icon" style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#4338CA' }}>
-              <Layers size={22} />
-            </div>
-            <div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Projects</p>
-              <h3 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalProjects}</h3>
-            </div>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Active system repositories</p>
+      {/* Summary Stat Pills Row */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div className="glass-panel" style={{ padding: '8px 16px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          {totalProjects} Projects
         </div>
-
-        {/* Overdue Count */}
-        <div className="glass-panel tech-card">
-          <div className="tech-card-header">
-            <div className="tech-icon" style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626' }}>
-              <AlertTriangle size={22} />
-            </div>
-            <div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Overdue Tasks</p>
-              <h3 style={{ fontSize: '1.8rem', fontWeight: 700, color: overdueCount > 0 ? '#DC2626' : 'var(--text-primary)' }}>{overdueCount}</h3>
-            </div>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Background job scheduler count</p>
+        <div className="glass-panel" style={{ padding: '8px 16px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          {totalTasks} Tasks
         </div>
-
-        {/* Online Users */}
-        <div className="glass-panel tech-card">
-          <div className="tech-card-header">
-            <div className="tech-icon" style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#059669' }}>
-              <Users size={22} />
-            </div>
-            <div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Online Users</p>
-              <h3 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#059669' }}>{onlineUsers}</h3>
-            </div>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Active WebSocket sockets</p>
+        <div className="glass-panel" style={{ padding: '8px 16px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, color: overdueCount > 0 ? '#DC2626' : 'var(--text-primary)', background: overdueCount > 0 ? '#FEF2F2' : '#FFFFFF', border: overdueCount > 0 ? '1px solid #FCA5A5' : '1px solid var(--border-color)' }}>
+          {overdueCount} Overdue
         </div>
-
-        {/* Total Tasks Count */}
-        <div className="glass-panel tech-card">
-          <div className="tech-card-header">
-            <div className="tech-icon" style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', color: '#7C3AED' }}>
-              <CheckCircle2 size={22} />
-            </div>
-            <div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Tasks</p>
-              <h3 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {Object.values(tasksByStatus).reduce((a, b) => a + b, 0)}
-              </h3>
-            </div>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Tasks across all projects</p>
+        <div className="glass-panel" style={{ padding: '8px 16px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669' }} />
+          {onlineUsers} Online
         </div>
       </div>
 
-      {/* Main Split Section: Tasks by Status & Global Activity */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem' }}>
-        {/* Tasks by Status Matrix */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-            <Activity size={18} style={{ color: '#4338CA' }} /> Tasks by Status Breakdown
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {Object.entries(tasksByStatus).map(([statusKey, count]) => {
-              const statusColors: Record<string, string> = {
-                TODO: '#71717A',
-                IN_PROGRESS: '#4338CA',
-                IN_REVIEW: '#D97706',
-                COMPLETED: '#059669',
-                BLOCKED: '#DC2626',
-                OVERDUE: '#DC2626',
-              };
-              const color = statusColors[statusKey] || '#4338CA';
-              return (
-                <div key={statusKey} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{statusKey.replace('_', ' ')}</span>
-                    <span style={{ fontWeight: 700, color }}>{count}</span>
+      {/* Main Split Grid: Projects & Live Activity Feed */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem' }}>
+        {/* Left Column: Projects & Task Status */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Projects Card */}
+          <div className="glass-panel" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Projects</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{defaultProjects.length} active</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {defaultProjects.map((p) => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#FAF9F7', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div>
+                    <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.clientName || 'Internal Client'}</span>
                   </div>
-                  <div style={{ height: '8px', background: '#F4F4F5', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${Math.min(count * 20, 100)}%`, background: color, borderRadius: '4px' }}></div>
-                  </div>
+                  <span className="status-badge online" style={{ fontSize: '0.7rem' }}>{p.status}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+
+          {/* Task Status Breakdown Card */}
+          <div className="glass-panel" style={{ padding: '1.25rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+              Task Status
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {statusItems.map((st) => (
+                <div key={st.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)' }}>{st.label}</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: st.color }}>{st.count}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Global Activity Feed */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-            <Clock size={18} style={{ color: '#7C3AED' }} /> Global System Activity Feed
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '350px', overflowY: 'auto' }}>
-            {globalActivity.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No activity logged yet.</p>
-            ) : (
-              globalActivity.map((log) => (
-                <div key={log.id} style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                  <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
-                    {log.formattedMessage || `${log.user?.name || 'User'} executed ${log.action}`}
-                  </p>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {new Date(log.timestamp).toLocaleString()}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+        {/* Right Column: Live Activity Feed */}
+        <div>
+          <ActivityFeed activities={globalActivity} title="Live Activity" maxHeight="450px" />
         </div>
       </div>
     </div>
@@ -153,4 +106,3 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ metrics }) => {
 };
 
 export default AdminDashboard;
-

@@ -1,21 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --bg-primary: #F7F6F3;
+  --bg-primary: #F8F8F6;
   --bg-secondary: #FFFFFF;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #FAFAFA;
+  --bg-card-hover: #FAF9F7;
   
-  --border-color: #E5E3DE;
-  --border-hover: #C8C5BD;
-  --border-glow: rgba(67, 56, 202, 0.25);
+  --border-color: #E2E2DE;
+  --border-hover: #D0D0C9;
   
   --accent-primary: #4338CA;
   --accent-primary-hover: #3730A3;
-  --accent-secondary: #006C4A;
-  --accent-gradient: linear-gradient(135deg, #4338CA 0%, #6366F1 100%);
+  --accent-light: #EEF2FF;
+  --accent-border: #C7D2FE;
   
-  --text-primary: #18181B;
+  --text-primary: #1E1E1E;
   --text-secondary: #71717A;
   --text-muted: #A1A1AA;
   
@@ -31,18 +30,14 @@
   --danger-bg: #FEF2F2;
   --danger-border: #FCA5A5;
 
-  --info: #4338CA;
-  --info-bg: #EEF2FF;
-  --info-border: #C7D2FE;
-
   --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
   --radius-sm: 6px;
   --radius-md: 12px;
-  --radius-lg: 16px;
-  --shadow-card: 0 1px 3px 0 rgba(24, 24, 27, 0.05), 0 1px 2px -1px rgba(24, 24, 27, 0.05);
-  --shadow-hover: 0 10px 25px -5px rgba(24, 24, 27, 0.08), 0 8px 10px -6px rgba(24, 24, 27, 0.04);
+  --radius-lg: 14px;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  --shadow-hover: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
 }
 
 * {
@@ -55,7 +50,7 @@ body {
   font-family: var(--font-family);
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.5;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -64,16 +59,67 @@ body {
 #root {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
-/* Studio Ledger Card Utility */
+/* Fixed Sidebar + Main Layout Grid */
+.app-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.sidebar-container {
+  width: 240px;
+  background: #FFFFFF;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  padding: 1.25rem 1rem;
+}
+
+.main-wrapper {
+  margin-left: 240px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Top Header Navigation */
+.top-header {
+  height: 64px;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+
+.content-area {
+  padding: 2rem;
+  flex: 1;
+  max-width: 1300px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Card Utility */
 .glass-panel {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .glass-panel:hover {
@@ -81,22 +127,15 @@ body {
   box-shadow: var(--shadow-hover);
 }
 
-/* Gradient Text */
-.gradient-text {
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
 /* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 7px 14px;
   font-family: var(--font-family);
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   border-radius: var(--radius-sm);
   border: none;
   cursor: pointer;
@@ -106,13 +145,10 @@ body {
 .btn-primary {
   background: var(--accent-primary);
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .btn-primary:hover {
   background: var(--accent-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.2);
 }
 
 .btn-secondary {
@@ -130,12 +166,11 @@ body {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 3px 9px;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
 }
 
 .status-badge.online {
@@ -145,27 +180,25 @@ body {
 }
 
 .status-badge.offline {
-  background: var(--danger-bg);
-  color: var(--danger);
-  border: 1px solid var(--danger-border);
-}
-
-.status-badge.in-progress {
-  background: var(--info-bg);
-  color: var(--info);
-  border: 1px solid var(--info-border);
-}
-
-.status-badge.warning {
   background: var(--warning-bg);
   color: var(--warning);
   border: 1px solid var(--warning-border);
 }
 
-.status-indicator {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: currentColor;
+/* Activity Feed Live Highlight Pulse */
+@keyframes activityFlash {
+  0% {
+    background-color: #EEF2FF;
+    border-left: 3px solid #4338CA;
+  }
+  100% {
+    background-color: transparent;
+    border-left: 3px solid transparent;
+  }
 }
+
+.activity-item-new {
+  animation: activityFlash 2.5s ease-out;
+}
+
 

@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import './App.css';
-import { Shield, UserCheck, Code, RefreshCw, Radio, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { PlusCircle, RefreshCw, CheckCircle2, Shield } from 'lucide-react';
+import Sidebar from './components/Sidebar';
+import NotificationDropdown, { NotificationItem } from './components/NotificationDropdown';
 import AdminDashboard, { AdminMetrics } from './components/dashboards/AdminDashboard';
 import PmDashboard, { PmMetrics } from './components/dashboards/PmDashboard';
 import DeveloperDashboard, { DeveloperMetrics } from './components/dashboards/DeveloperDashboard';
@@ -10,19 +12,29 @@ type ActiveRole = 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER';
 
 export function App() {
   const [activeRole, setActiveRole] = useState<ActiveRole>('ADMIN');
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
+
   // Real-time WebSocket Connection State
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
 
+  // Real-time Notifications State
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    { id: '1', title: 'Task Assigned', message: 'Task #18 was assigned to you', timestamp: '2 mins ago', isRead: false },
+    { id: '2', title: 'Task Review', message: 'Task #12 moved to In Review', timestamp: '8 mins ago', isRead: false },
+    { id: '3', title: 'Project Created', message: "Sarah created project 'Client Portal'", timestamp: '1 hour ago', isRead: false },
+  ]);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:5000';
 
-  // Demo baseline state when API fallback is used
+  // Demo metrics state
   const [adminMetrics, setAdminMetrics] = useState<AdminMetrics>({
     totalProjects: 12,
     tasksByStatus: {
@@ -36,17 +48,17 @@ export function App() {
     overdueCount: 3,
     onlineUsers: 6,
     globalActivity: [
-      { id: '1', action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), formattedMessage: 'Ravi moved Task #12 from In Progress → In Review' },
-      { id: '2', action: 'TASK_MARKED_OVERDUE', timestamp: new Date(Date.now() - 3600000).toISOString(), formattedMessage: "Task 'Database Migration' was automatically marked OVERDUE by background scheduler" },
-      { id: '3', action: 'PROJECT_CREATED', timestamp: new Date(Date.now() - 7200000).toISOString(), formattedMessage: "Sarah created project 'Client Portal Dashboard'" },
+      { id: '1', action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), user: { name: 'Ravi Sharma' }, formattedMessage: 'moved Task #12: In Progress → In Review' },
+      { id: '2', action: 'PROJECT_CREATED', timestamp: new Date(Date.now() - 3600000).toISOString(), user: { name: 'Sarah Jenkins' }, formattedMessage: "created project 'Client Portal'" },
+      { id: '3', action: 'TASK_ASSIGNED', timestamp: new Date(Date.now() - 7200000).toISOString(), user: { name: 'Ananya Verma' }, formattedMessage: 'assigned Task #18 to Developer' },
     ],
   });
 
   const [pmMetrics, setPmMetrics] = useState<PmMetrics>({
     totalOwnProjects: 4,
     ownProjects: [
-      { id: 'proj-1', name: 'Client Portal Dashboard', status: 'IN_PROGRESS', priority: 'HIGH', client: { name: 'Acme Corp', company: 'Acme Technologies' } },
-      { id: 'proj-2', name: 'Mobile App Redesign', status: 'PLANNING', priority: 'MEDIUM', client: { name: 'Starlight Inc', company: 'Starlight Logistics' } },
+      { id: 'proj-1', name: 'Client Portal', status: 'In Progress', priority: 'High', client: { name: 'Acme Corp', company: 'Acme Technologies' } },
+      { id: 'proj-2', name: 'Mobile App Redesign', status: 'In Progress', priority: 'Medium', client: { name: 'Starlight Inc', company: 'Starlight Logistics' } },
     ],
     tasksByPriority: {
       LOW: 4,
@@ -55,28 +67,28 @@ export function App() {
       URGENT: 2,
     },
     upcomingDeadlines: [
-      { id: 't1', title: 'Task #12 - API Authorization Refactor', status: 'IN_REVIEW', priority: 'HIGH', dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), project: { name: 'Client Portal Dashboard' } },
-      { id: 't2', title: 'Task #15 - Component Unit Tests', status: 'TODO', priority: 'URGENT', dueDate: new Date(Date.now() + 86400000 * 4).toISOString(), project: { name: 'Mobile App Redesign' } },
+      { id: 't1', title: 'API Authorization Refactor', status: 'IN_REVIEW', priority: 'HIGH', dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), project: { name: 'Client Portal' } },
+      { id: 't2', title: 'Component Unit Tests', status: 'TODO', priority: 'URGENT', dueDate: new Date(Date.now() + 86400000 * 4).toISOString(), project: { name: 'Mobile App Redesign' } },
     ],
     ownProjectActivity: [
-      { id: '1', action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), formattedMessage: 'Ravi moved Task #12 from In Progress → In Review' },
+      { id: '1', action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), user: { name: 'Ravi Sharma' }, formattedMessage: 'moved Task #12: In Progress → In Review' },
     ],
   });
 
   const [devMetrics, setDevMetrics] = useState<DeveloperMetrics>({
     totalAssignedTasks: 3,
     assignedTasks: [
-      { id: 't1', title: 'Task #12 - API Authorization Refactor', status: 'IN_REVIEW', priority: 'HIGH', dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), project: { name: 'Client Portal Dashboard' } },
-      { id: 't3', title: 'Task #08 - WebSocket Room Integration', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: new Date(Date.now() + 86400000).toISOString(), project: { name: 'Client Portal Dashboard' } },
-      { id: 't4', title: 'Task #04 - Database Indexing', status: 'TODO', priority: 'MEDIUM', dueDate: new Date(Date.now() + 86400000 * 5).toISOString(), project: { name: 'Mobile App Redesign' } },
+      { id: 't1', title: 'API Authorization Refactor', status: 'IN_REVIEW', priority: 'HIGH', dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), project: { name: 'Client Portal' } },
+      { id: 't3', title: 'WebSocket Room Integration', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: new Date(Date.now() + 86400000).toISOString(), project: { name: 'Client Portal' } },
+      { id: 't4', title: 'Database Indexing', status: 'TODO', priority: 'MEDIUM', dueDate: new Date(Date.now() + 86400000 * 5).toISOString(), project: { name: 'Mobile App Redesign' } },
     ],
     prioritySorting: [
-      { id: 't3', title: 'Task #08 - WebSocket Room Integration', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: new Date(Date.now() + 86400000).toISOString(), project: { name: 'Client Portal Dashboard' } },
-      { id: 't1', title: 'Task #12 - API Authorization Refactor', status: 'IN_REVIEW', priority: 'HIGH', dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), project: { name: 'Client Portal Dashboard' } },
-      { id: 't4', title: 'Task #04 - Database Indexing', status: 'TODO', priority: 'MEDIUM', dueDate: new Date(Date.now() + 86400000 * 5).toISOString(), project: { name: 'Mobile App Redesign' } },
+      { id: 't3', title: 'WebSocket Room Integration', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: new Date(Date.now() + 86400000).toISOString(), project: { name: 'Client Portal' } },
+      { id: 't1', title: 'API Authorization Refactor', status: 'IN_REVIEW', priority: 'HIGH', dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), project: { name: 'Client Portal' } },
+      { id: 't4', title: 'Database Indexing', status: 'TODO', priority: 'MEDIUM', dueDate: new Date(Date.now() + 86400000 * 5).toISOString(), project: { name: 'Mobile App Redesign' } },
     ],
     assignedTaskActivity: [
-      { id: '1', action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), formattedMessage: 'Ravi moved Task #12 from In Progress → In Review' },
+      { id: '1', action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), user: { name: 'Ravi Sharma' }, formattedMessage: 'moved Task #12: In Progress → In Review' },
     ],
   });
 
@@ -85,6 +97,11 @@ export function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 4000);
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    showToast('Notifications marked as read');
   };
 
   // Real-time WebSocket connection setup
@@ -97,7 +114,6 @@ export function App() {
 
         socket.onopen = () => {
           setWsConnected(true);
-          console.log('⚡ Connected to WebSocket server');
           socket.send(JSON.stringify({ action: 'request_recent_activities', limit: 20 }));
         };
 
@@ -112,13 +128,11 @@ export function App() {
 
         socket.onclose = () => {
           setWsConnected(false);
-          console.log('WebSocket connection closed. Reconnecting in 3s...');
           setTimeout(connectWs, 3000);
         };
 
-        socket.onerror = (err) => {
+        socket.onerror = () => {
           setWsConnected(false);
-          console.error('WebSocket connection error:', err);
         };
       } catch (err) {
         setWsConnected(false);
@@ -134,12 +148,22 @@ export function App() {
     };
   }, [wsUrl]);
 
-  // Handle incoming WebSocket broadcast events cleanly
+  // Handle incoming WebSocket events
   const handleIncomingWsEvent = (msg: any) => {
     const { event, payload, activities } = msg;
 
-    if (event === 'CONNECTED') {
-      showToast('⚡ WebSocket Connected: Real-time telemetry active');
+    if (event === 'UNREAD_COUNT_CHANGED' && payload?.notification) {
+      const notif = payload.notification;
+      setNotifications((prev) => [
+        {
+          id: String(Date.now()),
+          title: notif.title || 'Notification',
+          message: notif.message,
+          timestamp: 'just now',
+          isRead: false,
+        },
+        ...prev,
+      ]);
     }
 
     if (event === 'MISSED_EVENTS_RESYNC' && Array.isArray(activities)) {
@@ -149,6 +173,7 @@ export function App() {
           id: a.id,
           action: a.action,
           timestamp: a.timestamp,
+          user: a.user,
           formattedMessage: a.formattedMessage || `${a.user?.name || 'User'} executed ${a.action}`,
         })),
       }));
@@ -156,11 +181,23 @@ export function App() {
 
     if (event === 'TASK_CREATED' && payload?.task) {
       const task = payload.task;
-      const formattedMessage = payload.message || `New task '${task.title}' was created`;
-      
+      const formattedMessage = payload.message || `created task '${task.title}'`;
+
       showToast(`✨ Real-time Event: Task '${task.title}' Created!`);
 
-      // Live update Admin state
+      // Add to notifications
+      setNotifications((prev) => [
+        {
+          id: String(Date.now()),
+          title: 'Task Created',
+          message: `Task '${task.title}' was created`,
+          timestamp: 'just now',
+          isRead: false,
+        },
+        ...prev,
+      ]);
+
+      // Live update Admin
       setAdminMetrics((prev) => ({
         ...prev,
         tasksByStatus: {
@@ -168,12 +205,12 @@ export function App() {
           [task.status]: (prev.tasksByStatus[task.status] || 0) + 1,
         },
         globalActivity: [
-          { id: String(Date.now()), action: 'TASK_CREATED', timestamp: new Date().toISOString(), formattedMessage },
+          { id: String(Date.now()), action: 'TASK_CREATED', timestamp: new Date().toISOString(), user: { name: 'User' }, formattedMessage, isNew: true },
           ...prev.globalActivity,
         ],
       }));
 
-      // Live update PM state
+      // Live update PM
       setPmMetrics((prev) => ({
         ...prev,
         tasksByPriority: {
@@ -185,12 +222,12 @@ export function App() {
           ...prev.upcomingDeadlines,
         ],
         ownProjectActivity: [
-          { id: String(Date.now()), action: 'TASK_CREATED', timestamp: new Date().toISOString(), formattedMessage },
+          { id: String(Date.now()), action: 'TASK_CREATED', timestamp: new Date().toISOString(), user: { name: 'User' }, formattedMessage, isNew: true },
           ...prev.ownProjectActivity,
         ],
       }));
 
-      // Live update Dev state
+      // Live update Dev
       setDevMetrics((prev) => ({
         ...prev,
         totalAssignedTasks: prev.totalAssignedTasks + 1,
@@ -203,7 +240,7 @@ export function App() {
           ...prev.prioritySorting,
         ],
         assignedTaskActivity: [
-          { id: String(Date.now()), action: 'TASK_CREATED', timestamp: new Date().toISOString(), formattedMessage },
+          { id: String(Date.now()), action: 'TASK_CREATED', timestamp: new Date().toISOString(), user: { name: 'User' }, formattedMessage, isNew: true },
           ...prev.assignedTaskActivity,
         ],
       }));
@@ -224,7 +261,7 @@ export function App() {
           ...prev,
           tasksByStatus: nextStatusObj,
           globalActivity: [
-            { id: String(Date.now()), action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), formattedMessage: formattedMessage || `Task moved to ${newStatus}` },
+            { id: String(Date.now()), action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), user: { name: 'Ravi Sharma' }, formattedMessage: formattedMessage || `moved Task: ${oldStatus || ''} → ${newStatus}`, isNew: true },
             ...prev.globalActivity,
           ],
         };
@@ -234,7 +271,7 @@ export function App() {
         ...prev,
         upcomingDeadlines: updateTaskStatusInList(prev.upcomingDeadlines),
         ownProjectActivity: [
-          { id: String(Date.now()), action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), formattedMessage: formattedMessage || `Task moved to ${newStatus}` },
+          { id: String(Date.now()), action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), user: { name: 'Ravi Sharma' }, formattedMessage: formattedMessage || `moved Task: ${oldStatus || ''} → ${newStatus}`, isNew: true },
           ...prev.ownProjectActivity,
         ],
       }));
@@ -244,14 +281,13 @@ export function App() {
         assignedTasks: updateTaskStatusInList(prev.assignedTasks),
         prioritySorting: updateTaskStatusInList(prev.prioritySorting),
         assignedTaskActivity: [
-          { id: String(Date.now()), action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), formattedMessage: formattedMessage || `Task moved to ${newStatus}` },
+          { id: String(Date.now()), action: 'TASK_STATUS_CHANGED', timestamp: new Date().toISOString(), user: { name: 'Ravi Sharma' }, formattedMessage: formattedMessage || `moved Task: ${oldStatus || ''} → ${newStatus}`, isNew: true },
           ...prev.assignedTaskActivity,
         ],
       }));
     }
   };
 
-  // Sync button handler (REST + WebSocket request)
   const fetchDashboardStats = async () => {
     setLoading(true);
     try {
@@ -261,12 +297,11 @@ export function App() {
         setDashboardData(data);
         showToast('✅ Rest API & Live Dashboard Synced!');
       } else {
-        showToast('🔄 Standby Demo Data Synced');
+        showToast('🔄 Telemetry Synced');
       }
     } catch (err) {
-      showToast('🔄 Dashboard Telemetry Synced');
+      showToast('🔄 Telemetry Synced');
     } finally {
-      // Also request latest WebSocket activity resync
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ action: 'request_recent_activities', limit: 20 }));
       }
@@ -274,16 +309,7 @@ export function App() {
     }
   };
 
-  // Create Task Handler
-  const handleCreateTask = async (taskData: {
-    title: string;
-    description: string;
-    projectId: string;
-    priority: string;
-    status: string;
-    assignedDeveloperId?: string;
-    dueDate?: string;
-  }) => {
+  const handleCreateTask = async (taskData: any) => {
     try {
       const res = await fetch(`${apiBaseUrl}/tasks`, {
         method: 'POST',
@@ -293,10 +319,9 @@ export function App() {
 
       if (res.ok) {
         await res.json();
-        showToast(`Task '${taskData.title}' successfully created on server!`);
+        showToast(`Task '${taskData.title}' created!`);
         fetchDashboardStats();
       } else {
-        // Local state update when API is in standby
         const newTask = {
           id: `t-${Date.now()}`,
           title: taskData.title,
@@ -304,19 +329,14 @@ export function App() {
           status: taskData.status,
           priority: taskData.priority,
           dueDate: taskData.dueDate || new Date(Date.now() + 86400000 * 3).toISOString(),
-          project: { name: taskData.projectId === 'proj-1' ? 'Client Portal Dashboard' : 'Mobile App Redesign' },
+          project: { name: 'Client Portal' },
         };
-
         handleIncomingWsEvent({
           event: 'TASK_CREATED',
-          payload: {
-            task: newTask,
-            message: `User created task '${newTask.title}' in project '${newTask.project.name}'`,
-          },
+          payload: { task: newTask, message: `created task '${newTask.title}' in project 'Client Portal'` },
         });
       }
     } catch (err) {
-      // Fallback local state creation
       const newTask = {
         id: `t-${Date.now()}`,
         title: taskData.title,
@@ -324,20 +344,15 @@ export function App() {
         status: taskData.status,
         priority: taskData.priority,
         dueDate: taskData.dueDate || new Date(Date.now() + 86400000 * 3).toISOString(),
-        project: { name: 'Client Portal Dashboard' },
+        project: { name: 'Client Portal' },
       };
-
       handleIncomingWsEvent({
         event: 'TASK_CREATED',
-        payload: {
-          task: newTask,
-          message: `User created task '${newTask.title}' in project 'Client Portal Dashboard'`,
-        },
+        payload: { task: newTask, message: `created task '${newTask.title}' in project 'Client Portal'` },
       });
     }
   };
 
-  // Developer Status Update Handler
   const handleUpdateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
       const res = await fetch(`${apiBaseUrl}/tasks/${taskId}`, {
@@ -353,7 +368,7 @@ export function App() {
         handleIncomingWsEvent({
           event: 'TASK_STATUS_CHANGED',
           payload: {
-            formattedMessage: `Developer updated Task ID #${taskId} status → ${newStatus}`,
+            formattedMessage: `updated Task status → ${newStatus}`,
             task: { id: taskId },
             newStatus,
           },
@@ -363,7 +378,7 @@ export function App() {
       handleIncomingWsEvent({
         event: 'TASK_STATUS_CHANGED',
         payload: {
-          formattedMessage: `Developer updated Task ID #${taskId} status → ${newStatus}`,
+          formattedMessage: `updated Task status → ${newStatus}`,
           task: { id: taskId },
           newStatus,
         },
@@ -376,8 +391,8 @@ export function App() {
   }, [activeRole]);
 
   return (
-    <div className="app-container">
-      {/* Toast Notification Notification Banner */}
+    <div className="app-layout">
+      {/* Toast Notification */}
       {toastMessage && (
         <div
           style={{
@@ -388,102 +403,139 @@ export function App() {
             background: '#FFFFFF',
             color: 'var(--text-primary)',
             border: '1px solid #C7D2FE',
-            padding: '12px 20px',
-            borderRadius: '10px',
+            padding: '10px 18px',
+            borderRadius: '8px',
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: '8px',
             fontWeight: 600,
-            fontSize: '0.875rem',
-            animation: 'fadeIn 0.3s ease',
+            fontSize: '0.85rem',
           }}
         >
-          <CheckCircle2 size={18} style={{ color: '#4338CA' }} />
+          <CheckCircle2 size={16} style={{ color: '#4338CA' }} />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Top Banner Header */}
-      <header className="glass-panel header-banner">
-        <div className="logo-section">
-          <h1>Client Project <span className="gradient-text">Dashboard</span></h1>
-          <p>Full-Stack Multi-Role Architecture & Real-Time Telemetry Workspace</p>
-        </div>
+      {/* Fixed Left Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        userRole={activeRole}
+        unreadNotificationCount={unreadCount}
+      />
 
-        {/* Action Controls & WebSocket Connection Badge */}
-        <div className="status-area" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-primary"
-            onClick={() => setIsCreateTaskOpen(true)}
-            style={{ fontSize: '0.85rem' }}
-          >
-            <PlusCircle size={16} /> Create Task
-          </button>
+      {/* Main Right Content Area */}
+      <div className="main-wrapper">
+        {/* Top Header Navigation */}
+        <header className="top-header">
+          {/* Header Title & Subtitle */}
+          <div>
+            <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+              Client Projects
+            </h1>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Track projects, tasks, and team activity in one place.
+            </p>
+          </div>
 
-          <span
-            className={`status-badge ${wsConnected ? 'online' : 'offline'}`}
-            style={{ padding: '6px 14px' }}
-          >
-            <Radio size={14} className={wsConnected ? 'animate-pulse' : ''} />
-            {wsConnected ? 'WebSocket Live Channel' : 'WebSocket Disconnected'}
-          </span>
+          {/* Top Right Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setIsCreateTaskOpen(true)}
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+            >
+              <PlusCircle size={14} /> Create Task
+            </button>
 
-          <button
-            className="btn btn-secondary"
-            onClick={fetchDashboardStats}
-            disabled={loading}
-            style={{ fontSize: '0.85rem' }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Sync
-          </button>
-        </div>
-      </header>
+            <button
+              className="btn btn-secondary"
+              onClick={fetchDashboardStats}
+              disabled={loading}
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+              title="Sync Data"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Sync
+            </button>
 
-      {/* Role Experience Switcher Bar */}
-      <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Role View:</span>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            className={`btn ${activeRole === 'ADMIN' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveRole('ADMIN')}
-          >
-            <Shield size={16} /> ADMIN Dashboard
-          </button>
-          <button
-            className={`btn ${activeRole === 'PROJECT_MANAGER' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveRole('PROJECT_MANAGER')}
-          >
-            <UserCheck size={16} /> PROJECT MANAGER Dashboard
-          </button>
-          <button
-            className={`btn ${activeRole === 'DEVELOPER' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveRole('DEVELOPER')}
-          >
-            <Code size={16} /> DEVELOPER Dashboard
-          </button>
-        </div>
+            {/* Notification Bell Dropdown */}
+            <NotificationDropdown
+              notifications={notifications}
+              onMarkAllRead={handleMarkAllNotificationsRead}
+              unreadCount={unreadCount}
+            />
+
+            {/* Subtle Live Indicator Badge */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                background: wsConnected ? '#ECFDF5' : '#FFFBEB',
+                color: wsConnected ? '#059669' : '#D97706',
+                border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FDE68A',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: wsConnected ? '#059669' : '#D97706',
+                }}
+              />
+              {wsConnected ? 'Live' : 'Reconnecting'}
+            </div>
+
+            {/* Demo Role Context Switcher */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#FAF9F7', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '2px' }}>
+              <Shield size={12} style={{ color: '#4338CA', marginLeft: '4px' }} />
+              <select
+                value={activeRole}
+                onChange={(e) => setActiveRole(e.target.value as ActiveRole)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  padding: '2px 4px',
+                }}
+              >
+                <option value="ADMIN">Role: ADMIN</option>
+                <option value="PROJECT_MANAGER">Role: PM</option>
+                <option value="DEVELOPER">Role: DEV</option>
+              </select>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="content-area">
+          {activeRole === 'ADMIN' && (
+            <AdminDashboard metrics={dashboardData?.metrics || adminMetrics} />
+          )}
+
+          {activeRole === 'PROJECT_MANAGER' && (
+            <PmDashboard metrics={dashboardData?.metrics || pmMetrics} />
+          )}
+
+          {activeRole === 'DEVELOPER' && (
+            <DeveloperDashboard
+              metrics={dashboardData?.metrics || devMetrics}
+              onUpdateStatus={handleUpdateTaskStatus}
+            />
+          )}
+        </main>
       </div>
-
-      {/* Active Role Dashboard View Rendering */}
-      <main className="dashboard-main-content">
-        {activeRole === 'ADMIN' && (
-          <AdminDashboard metrics={dashboardData?.metrics || adminMetrics} />
-        )}
-
-        {activeRole === 'PROJECT_MANAGER' && (
-          <PmDashboard metrics={dashboardData?.metrics || pmMetrics} />
-        )}
-
-        {activeRole === 'DEVELOPER' && (
-          <DeveloperDashboard
-            metrics={dashboardData?.metrics || devMetrics}
-            onUpdateStatus={handleUpdateTaskStatus}
-          />
-        )}
-      </main>
 
       {/* Task Creation Modal */}
       <CreateTaskModal
@@ -497,4 +549,3 @@ export function App() {
 }
 
 export default App;
-
