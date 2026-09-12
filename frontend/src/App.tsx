@@ -7,6 +7,13 @@ import AdminDashboard, { AdminMetrics } from './components/dashboards/AdminDashb
 import PmDashboard, { PmMetrics } from './components/dashboards/PmDashboard';
 import DeveloperDashboard, { DeveloperMetrics } from './components/dashboards/DeveloperDashboard';
 import CreateTaskModal from './components/CreateTaskModal';
+import ProjectsView from './components/views/ProjectsView';
+import TasksView from './components/views/TasksView';
+import ActivityFeed from './components/ActivityFeed';
+import NotificationsView from './components/views/NotificationsView';
+import ClientsView from './components/views/ClientsView';
+import TeamView from './components/views/TeamView';
+import SettingsView from './components/views/SettingsView';
 
 type ActiveRole = 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER';
 
@@ -498,7 +505,11 @@ export function App() {
               <Shield size={12} style={{ color: '#4338CA', marginLeft: '4px' }} />
               <select
                 value={activeRole}
-                onChange={(e) => setActiveRole(e.target.value as ActiveRole)}
+                onChange={(e) => {
+                  const role = e.target.value as ActiveRole;
+                  setActiveRole(role);
+                  setActiveTab('dashboard');
+                }}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -518,22 +529,52 @@ export function App() {
           </div>
         </header>
 
-        {/* Main Content Area */}
+        {/* Main Content Area: Responsive to activeTab & activeRole */}
         <main className="content-area">
-          {activeRole === 'ADMIN' && (
-            <AdminDashboard metrics={dashboardData?.metrics || adminMetrics} />
+          {activeTab === 'dashboard' && (
+            <>
+              {activeRole === 'ADMIN' && (
+                <AdminDashboard metrics={dashboardData?.metrics || adminMetrics} />
+              )}
+              {activeRole === 'PROJECT_MANAGER' && (
+                <PmDashboard metrics={dashboardData?.metrics || pmMetrics} />
+              )}
+              {activeRole === 'DEVELOPER' && (
+                <DeveloperDashboard
+                  metrics={dashboardData?.metrics || devMetrics}
+                  onUpdateStatus={handleUpdateTaskStatus}
+                />
+              )}
+            </>
           )}
 
-          {activeRole === 'PROJECT_MANAGER' && (
-            <PmDashboard metrics={dashboardData?.metrics || pmMetrics} />
+          {activeTab === 'projects' && (
+            <ProjectsView onCreateTaskClick={() => setIsCreateTaskOpen(true)} />
           )}
 
-          {activeRole === 'DEVELOPER' && (
-            <DeveloperDashboard
-              metrics={dashboardData?.metrics || devMetrics}
+          {activeTab === 'tasks' && (
+            <TasksView
+              onCreateTaskClick={() => setIsCreateTaskOpen(true)}
               onUpdateStatus={handleUpdateTaskStatus}
             />
           )}
+
+          {activeTab === 'activity' && (
+            <ActivityFeed activities={adminMetrics.globalActivity} title="Global Organization Activity Feed" maxHeight="600px" />
+          )}
+
+          {activeTab === 'notifications' && (
+            <NotificationsView
+              notifications={notifications}
+              onMarkAllRead={handleMarkAllNotificationsRead}
+            />
+          )}
+
+          {activeTab === 'clients' && <ClientsView />}
+
+          {activeTab === 'team' && <TeamView />}
+
+          {activeTab === 'settings' && <SettingsView />}
         </main>
       </div>
 
