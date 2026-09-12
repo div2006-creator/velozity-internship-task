@@ -36,7 +36,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ metrics }) => {
     <div className="dashboard-view admin-view" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Greeting Header */}
       <div>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>Good morning, Sarah</h2>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>Good morning, Divyansh</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Here's what's happening across your organization.</p>
       </div>
 
